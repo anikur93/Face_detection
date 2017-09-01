@@ -86,13 +86,12 @@ import cv2
 import face_recognition
 import os
 
-path = r'/home/sreehari/Image_project/train_images'
 
 cap.release()
 cv2.destroyAllWindows()
 
 cv2.namedWindow("preview")
-cap = cv2.VideoCapture(0)  
+cap = cv2.VideoCapture(1)  
 i =0  
 while(True):
     # Capture frame-by-frame
@@ -107,8 +106,8 @@ while(True):
             # Print the location of each face in this image
         top, right, bottom, left = face_location
         #print("A face is located at pixel location Top: {}, Left: {}, Bottom: {}, Right: {}".format(top, left, bottom, right))
-        ne_img = cv2.rectangle(frame, (left, top), (right, bottom), (255,0,0), 5)
-        cropped_img = frame[top:bottom, left:right]
+        #cv2.rectangle(frame, (left, top), (right, bottom), (255,0,0), 5)
+        cropped_img = frame[top-70:bottom+25, left-15:right+15]
         
             #plt.imshow(ne_img) xywh y:y+h x:x+w
             #unknown_face_encoding_present = unknown_face_encoding[i]
@@ -124,14 +123,17 @@ while(True):
         
         
         # Display the resulting frame
-    cv2.imshow('preview',ne_img)
+    cv2.imshow('preview',frame)
     #cv2.imshow('preview', cropped_img)
-    #cv2.imwrite('akshay'+str(i)+'.png',cropped_img)
-    if (cv2.waitKey(1) & 0xFF == ord('q')) | i > 150:
+    cv2.imwrite('sandeep'+str(i)+'.png',cropped_img)
+    if (cv2.waitKey(1) & 0xFF == ord('q')) | i > 100:
         break
     
 cap.release()
 cv2.destroyAllWindows()
+
+
+path = r'/home/sreehari/Image_project/train_images'
 
 from PIL import Image
 

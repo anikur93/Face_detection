@@ -6,6 +6,10 @@ Created on Thu Aug 24 11:44:21 2017
 @author: sreehari
 """
 import numpy as np
+import cv2
+import face_recognition
+import os
+import numpy as np
 import matplotlib.image as mpimg
 import pickle
 import time
@@ -17,6 +21,81 @@ import matplotlib.pyplot as plt
 from tensorflow.contrib.layers import flatten
 
 from alexnet_conv import AlexNet
+
+
+
+path = r'/home/sreehari/Image_project/train_images3'
+
+from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
+datagen = ImageDataGenerator(
+        rotation_range=40,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.3,
+        horizontal_flip=True,
+        fill_mode='nearest')
+
+def image_aug(path):
+    image_paths = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.png')]
+    for image_path in image_paths:
+        img = load_img(image_path)
+        x = img_to_array(img)  # this is a Numpy array with shape (3, 150, 150)
+        x = x.reshape((1,) + x.shape)
+        
+        nbr = os.path.split(image_path)[1].split('.')[0]
+        label = ''.join(x for x in nbr if x.isalpha())
+        
+        i = 0
+        for batch in datagen.flow(x, batch_size=1,
+                          save_to_dir='train_images3', save_prefix=label, save_format='png'):
+            i += 1
+            if i > 20:
+                break
+
+
+image_aug(path)
+
+def augment_brightness_camera_images(path):
+    image_paths = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.png')]
+    for image_path in image_paths:
+        image = load_img(image_path)
+        image = img_to_array(image) 
+        image1 = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+        random_bright = .25+np.random.uniform()
+        image1[:,:,2] = image1[:,:,2]*random_bright
+        image1 = cv2.cvtColor(image1,cv2.COLOR_HSV2RGB)
+        
+        nbr = os.path.split(image_path)[1].split('.')[0]
+        label = ''.join(x for x in nbr if x.isalpha())
+        
+        cv2.imwrite(path+'/'+nbr+'_100'+'.png',image1)
+        
+augment_brightness_camera_images(path)
+
+
+from PIL import Image
+
+def get_images_and_labels(path):
+    image_paths = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.png')]
+    images = []
+    labels = []
+    for image_path in image_paths:
+        image = load_img(image_path)
+        nbr = os.path.split(image_path)[1].split('.')[0]
+        label = ''.join(x for x in nbr if x.isalpha())
+        images.append(image)
+        labels.append(label)
+        #cv2.imshow('Adding faces to training set...', image)
+        cv2.waitKey(50)
+    return images, labels
+
+images, labels = get_images_and_labels(path)
+        
+
+
+
+
 
 X_train = []
 y_train = labels
@@ -56,22 +135,10 @@ batch_size = 256
 X_train, y_train = shuffle(X_train, y_train)
 
 
-#def rgb2gray(rgb):
-#
-#    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-#    #gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-#    #gray = (r+g+b)/3
-#    gray = 0.21 * r + 0.72 * g + 0.07 * b
-#    gray = gray.reshape(32,32,1)
-#    return gray
-#
-#def conversion(list1):
-#    l = []
-#    for i in range(len(list1)):
-#        img = list1[i] 
-#        gray = rgb2gray(img)
-#        l.append(gray)
-#    return l
+
+##Image augmentation
+
+
 
 
 def normalise(list1):
@@ -90,9 +157,9 @@ def normalise(list1):
 x_train = normalise(X_train)
 X_train = x_train
 
-plt.imshow(X_train[0])
+#plt.imshow(X_train[0])
 
-X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.13, random_state=0)
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.25, random_state=0)
 
 features = tf.placeholder(tf.float32, (None, 120, 120, 3))
 labels = tf.placeholder(tf.int64, None)
@@ -172,6 +239,9 @@ with tf.Session() as sess:
         print("")
     saver.save(sess, save_file)
     print('Trained Model Saved.')
+    
+
+
 
         
 
@@ -181,6 +251,7 @@ plt.imshow(X_val[rn])
      
 #init = tf.global_variables_initializer()
 with tf.Session() as sess:
+    saver = tf.train.Saver()
     saver.restore(sess, save_file)
 
     #sess.run(init)
@@ -195,8 +266,13 @@ import cv2
 import face_recognition
 from PIL import Image
 
+label_dict = dict.fromkeys(label_sets)
+label_dict = {x: 0 for x in label_dict}
+
+
+
 cv2.namedWindow("preview")
-cap = cv2.VideoCapture(0)  
+cap = cv2.VideoCapture(1)  
 while(True):
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -204,26 +280,30 @@ while(True):
     #i =i +1
     #if len(face_recognition.face_encodings(frame)) >= 1:       
     #     unknown_face_encoding = face_recognition.face_encodings(frame)
-     #    i = 0 
+    #    i = 0     face_locations = face_recognition.face_locations(frame) 
+    
      
     for face_location in face_locations:
-            # Print the location of each face in this image
         top, right, bottom, left = face_location
-        #print("A face is located at pixel location Top: {}, Left: {}, Bottom: {}, Right: {}".format(top, left, bottom, right))
-        ne_img = cv2.rectangle(frame, (left, top), (right, bottom), (255,0,0), 5)
-        cropped_img = frame[top:bottom, left:right]
-        
+        cv2.rectangle(frame, (left, top), (right, bottom), (255,0,0), 5)
+        cropped_img = frame[top-70:bottom+25, left-15:right+15]        
         ll = Image.fromarray(cropped_img)
         ll = ll.resize((120, 120))
         ll = np.array(ll)
         ll = ll.reshape(1,120,120,3)
+        ll = normalise(ll)
         init = tf.global_variables_initializer()
         with tf.Session() as sess:
             saver.restore(sess, save_file)
     #print(le.transform([sess.run(preds, feed_dict={features :ll})]))    
             name=le.inverse_transform(sess.run(preds, feed_dict={features :ll}))
-        cv2.putText(ne_img, name[0],(left, top), cv2.FONT_HERSHEY_SIMPLEX, 5, (255,255,255), 2, cv2.LINE_AA)
-    cv2.imshow('preview',ne_img)
+            name = name[0]            
+            if name in label_dict:
+                label_dict[name] = label_dict[name] + 1
+        
+        maximum = max(label_dict, key=label_dict.get)
+        cv2.putText(frame, maximum,(left, top), cv2.FONT_HERSHEY_SIMPLEX, 5, (255,255,255), 2, cv2.LINE_AA)
+        cv2.imshow('preview',frame)
         
             #plt.imshow(ne_img) xywh y:y+h x:x+w
             #unknown_face_encoding_present = unknown_face_encoding[i]
